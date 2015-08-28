@@ -201,6 +201,8 @@ namespace WordToSimpleHtml
 
                 if (rxAbsoluteUrl.IsMatch(href))
                     sb.Append("\" target='_blank'>");
+                else
+                    sb.Append("\">");
 
                 AppendInnerText(sb, m.Groups["inner"].Value);
                 sb.Append("</a></w:t></w:faker>");
