@@ -193,21 +193,42 @@ namespace WordToSimpleHtml
         {
             return rxHyperlink.Replace(content, delegate(Match m)
             {
-                var sb = new StringBuilder("<w:faker><w:t><a href=\"");
-                sb.Append(rels[m.Groups["relid"].Value]);
-                var href = m.Groups["anchor"].Value;
-                if (!string.IsNullOrEmpty(href))
-                    sb.AppendFormat("#{0}", href);
+                var href = rels[m.Groups["relid"].Value];
+                var hash = m.Groups["anchor"].Value;
+
+                var sb = new StringBuilder("<w:faker><w:t>");
+                sb.AppendFormat("<a href='{0}{1}'", href, !string.IsNullOrEmpty(hash) ? string.Format("#{0}", hash) : string.Empty);
 
                 if (rxAbsoluteUrl.IsMatch(href))
-                    sb.Append("\" target='_blank'>");
+                    sb.Append(" target='_blank'");
                 else
-                    sb.Append("\">");
+                    AppendDataTitle(sb, href);
 
+                sb.Append(">");
                 AppendInnerText(sb, m.Groups["inner"].Value);
                 sb.Append("</a></w:t></w:faker>");
                 return sb.ToString();
             });
+        }
+
+        private void AppendDataTitle(StringBuilder sb, string href)
+        {
+            if (File.Exists(htmlDir + href))
+            {
+                var h1Match = rxInitialH1.Match(File.ReadAllText(htmlDir + href));
+                if (h1Match.Success)
+                {
+                    sb.AppendFormat(" data-title='{0}'", h1Match.Groups["inner"].Value);
+                }
+                else
+                {
+                    sb.Append(" data-title='initial h1 element not found'");
+                }
+            }
+            else
+            {
+                sb.AppendFormat(" data-title='File {0} not found'", htmlDir + href);
+            }
         }
 
         private string ReplaceImages(string content)
