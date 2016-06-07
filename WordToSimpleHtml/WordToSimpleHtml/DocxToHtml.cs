@@ -34,16 +34,16 @@ namespace WordToSimpleHtml
         private static readonly Regex rxHyperlink = new Regex(@"<w:hyperlink\s+r:id=""(?<relid>[^""]+)""(?:\s+w:anchor=""(?<anchor>[^""]+)"")?[^>]*>(?<inner>.+?)</w:hyperlink>",
             RegexOptions.Singleline | RegexOptions.Compiled);
 
-        private static readonly Regex rxDrawingImage = new Regex(@"<w:drawing>(?<inner>.+?)</w:drawing>",
+        private static readonly Regex rxDrawingImage = new Regex("<w:drawing>(?<inner>.+?)</w:drawing>",
             RegexOptions.Singleline | RegexOptions.Compiled);
 
-        private static readonly Regex rxTable = new Regex(@"<w:tbl>(?<inner>.+?)</w:tbl>", RegexOptions.Singleline | RegexOptions.Compiled);
+        private static readonly Regex rxTable = new Regex("<w:tbl>(?<inner>.+?)</w:tbl>", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex rxTableRow = new Regex(@"<w:tr\b[^>]*>(?<inner>.+?)</w:tr>", RegexOptions.Singleline | RegexOptions.Compiled);
-        private static readonly Regex rxTableCell = new Regex(@"<w:tc>(?<inner>.+?)</w:tc>", RegexOptions.Singleline | RegexOptions.Compiled);
+        private static readonly Regex rxTableCell = new Regex("<w:tc>(?<inner>.+?)</w:tc>", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex rxGridSpan = new Regex(@"<w:gridSpan\s+w:val=""(?<colspan>\d+)""/>");
         private static readonly Regex rxTableCleanup = new Regex(@"<p>\s*<table>", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTableEndCleanup = new Regex(@"</table>\s*</p>", RegexOptions.Compiled | RegexOptions.Singleline);
-        private static readonly Regex rxInnerText = new Regex(@">(?<inner>[^>]*)<", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex rxInnerText = new Regex(">(?<inner>[^>]*)<", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxWebsomething = new Regex(@"\b[wW]eb(?<something>(?:site|page)s?)\b", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxWeb = new Regex(@"\bweb\b", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxInternet = new Regex(@"\binternet\b", RegexOptions.Compiled | RegexOptions.Singleline);
@@ -187,7 +187,7 @@ namespace WordToSimpleHtml
             }
         }
 
-        private static readonly Regex rxAbsoluteUrl = new Regex(@"(?:https?:)?//", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex rxAbsoluteUrl = new Regex("(?:https?:)?//", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private string ReplaceHyperlinks(string content)
         {
@@ -331,7 +331,7 @@ namespace WordToSimpleHtml
                             //	<w:ilvl w:val="0"/> could tell us nestedness.
                             //listTag = rxNumberList.IsMatch(pInner) ? "ol" : "ul";
                             listTag = "ul";
-                            sb.Append("<" + listTag + ">" + Environment.NewLine);
+                            sb.AppendLine($"<{listTag}>");
                             inList = true;
                         }
 
@@ -351,14 +351,14 @@ namespace WordToSimpleHtml
 
                 if (inList && tag != "li")
                 {
-                    sb.Append("</" + listTag + ">" + Environment.NewLine);
+                    sb.AppendLine($"</{listTag}>");
                     inList = false;
                 }
 
                 //  do some work to avoid outputting empty elements (empty <ul></ul> will still be output)
                 var preTagLocation = sb.Length;
 
-                sb.AppendFormat("<{0}{1}>", tag, string.IsNullOrEmpty(style) ? string.Empty : string.Format(" class=\"{0}\"", style));
+                sb.Append($"<{tag}{(string.IsNullOrEmpty(style) ? string.Empty : $" class=\"{style}\"")}>");
 
                 var preTextLocation = sb.Length;
 
@@ -368,6 +368,11 @@ namespace WordToSimpleHtml
                     sb.Remove(preTagLocation, sb.Length - preTagLocation);
                 else
                     sb.AppendFormat("</{0}>" + Environment.NewLine, tag);
+            }
+
+            if (inList)
+            {
+                sb.AppendLine($"</{listTag}>");
             }
         }
 
