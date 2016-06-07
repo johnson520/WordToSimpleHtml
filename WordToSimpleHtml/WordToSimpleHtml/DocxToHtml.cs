@@ -410,7 +410,7 @@ namespace WordToSimpleHtml
             bodyContent = rxImgInP.Replace(bodyContent,
                 m =>
                     string.Format(
-                        "<p class=\"img-in-p\"><img alt=\"{2}\" src=\"/home/help/content/{1}\" /><br />{0}</p>",
+                        "<p class=\"img-in-p\"><img alt=\"{2}\" src=\"/home/help/{1}\" /><br />{0}</p>",
                         rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty)));
 
             bodyContent = rxUnneededBr.Replace(bodyContent, "${keep}");
