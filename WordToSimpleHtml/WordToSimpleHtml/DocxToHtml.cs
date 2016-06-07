@@ -52,7 +52,7 @@ namespace WordToSimpleHtml
         private static readonly Regex rxLonelyPsInTds = new Regex(@"<td>\s*<p>(?<inner>(?:(?!<p>).)*?)</p>\s*</td>", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxEmptyPs = new Regex(@"<p[^>]*>\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTitleP = new Regex(@"^\s*<p\s+class=""Title"">\s*(?<inner>.*?)\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
-        private static readonly Regex rxInitialH1 = new Regex(@"^\s*<h1[^>]*>\s*(?<inner>.*?)\s*</h1>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex rxInitialH1 = new Regex(@"<h1[^>]*>\s*(?<inner>.*?)\s*</h1>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
 
         private static readonly Regex rxImgInP = new Regex(@"<p>\s*(?:<[bi]>)*\s*<img\s+src=""(?<src>[^""]+)""\s*/>\s*(?:<br\s?/>)*\s*(?<caption>.*?)\s*(?:</[bi]>\s*)*</p>",
             RegexOptions.Compiled | RegexOptions.Singleline);
@@ -66,6 +66,14 @@ namespace WordToSimpleHtml
         private readonly ErrorLogger logError;
         private readonly Dictionary<string, string> rels = new Dictionary<string, string>();
 
+        private const string AspxPrefix = @"<%@ Page Title=""Trickster Cards {0}"" Language=""C#"" MasterPageFile=""~/home/home.master"" CodeBehind=""~/home/InAppPage.cs"" Inherits=""Hearts.home.InAppPage"" AutoEventWireup=""true"" %>
+<asp:Content runat=""server"" ContentPlaceHolderID=""mainBody"">
+<div class=""main-body-content"">
+";
+        private const string AspxSuffix = @"</div>
+</asp:Content>
+";
+
         public DocxToHtml(ErrorLogger logger)
         {
             logError = logger;
@@ -73,18 +81,19 @@ namespace WordToSimpleHtml
 
         public void Convert(string docxFile, string htmlFile, string imageFilePrefix, out string foundTitle)
         {
-            foundTitle = null;
+            foundTitle = string.Empty;
 
             if (!File.Exists(docxFile))
             {
-                logError(string.Format("Word file '{0}' does not exist.", docxFile));
+                logError($"Word file '{docxFile}' does not exist.");
                 return;
             }
 
             htmlDir = Path.GetDirectoryName(htmlFile);
             if (htmlDir == null || !Directory.Exists(htmlDir))
             {
-                logError(string.Format("HTML file directory '{0}' does not exist", htmlDir ?? "null"));
+                logError($"HTML file directory '{htmlDir ?? "null"}' does not exist");
+                return;
             }
 
             htmlDir += "\\";
@@ -101,18 +110,23 @@ namespace WordToSimpleHtml
 
                 var html = ConvertContentToHtml(content, out foundTitle);
 
+                if (string.Compare(Path.GetExtension(htmlFile), ".aspx", StringComparison.InvariantCulture) == 0)
+                {
+                    html = $"{string.Format(AspxPrefix, foundTitle)}{html}{AspxSuffix}";
+                }
+
                 File.WriteAllText(htmlFile, html, Encoding.UTF8);
             }
             catch (Exception theE)
             {
-                File.WriteAllText(htmlFile, "Exception occurred converting docx to html: " + theE.Message + " at " + theE.StackTrace);
+                File.WriteAllText(htmlFile, $"Exception occurred converting docx to html: {theE.Message} at {theE.StackTrace}");
                 throw;
             }
         }
 
         private string ConvertContentToHtml(string content, out string foundTitle)
         {
-            foundTitle = null;
+            foundTitle = string.Empty;
 
             var bodyMatch = rxBody.Match(content);
             if (!bodyMatch.Success)
@@ -139,7 +153,7 @@ namespace WordToSimpleHtml
                 var relKey = blipMatch.Groups["relid"].Value;
                 var relValue = rels[relKey];
                 //  we link to images whether they were originally linked or embedded. code in LoadRels copies embedded images to local files.
-                replacement = string.Format("<w:faker><w:t><img src=\"{0}\" /></w:t></w:faker>", relValue);
+                replacement = $"<w:faker><w:t><img src=\"{relValue}\" /></w:t></w:faker>";
             }
 
             return replacement;
@@ -197,12 +211,12 @@ namespace WordToSimpleHtml
                 var hash = m.Groups["anchor"].Value;
 
                 var sb = new StringBuilder("<w:faker><w:t>");
-                sb.AppendFormat("<a href='{0}{1}'", href, !string.IsNullOrEmpty(hash) ? string.Format("#{0}", hash) : string.Empty);
+                sb.AppendFormat("<a href='{0}{1}'", href, !string.IsNullOrEmpty(hash) ? $"#{hash}" : string.Empty);
 
                 if (rxAbsoluteUrl.IsMatch(href))
                     sb.Append(" target='_blank'");
                 else
-                    AppendDataTitle(sb, href);
+                    AppendDataTitle(sb, href, rxText.Match(m.Groups["inner"].Value).Groups["inner"].Value);
 
                 sb.Append(">");
                 AppendInnerText(sb, m.Groups["inner"].Value);
@@ -211,30 +225,32 @@ namespace WordToSimpleHtml
             });
         }
 
-        private void AppendDataTitle(StringBuilder sb, string href)
+        private void AppendDataTitle(StringBuilder sb, string href, string fallBackTitle)
         {
-            if (File.Exists(htmlDir + href))
+            fallBackTitle = Regex.Replace(fallBackTitle, @"\b[a-z]", m => m.Value.ToUpper());
+
+            var path = htmlDir + href;
+            if (File.Exists(path))
             {
-                var h1Match = rxInitialH1.Match(File.ReadAllText(htmlDir + href));
+                var h1Match = rxInitialH1.Match(File.ReadAllText(path));
                 if (h1Match.Success)
                 {
                     sb.AppendFormat(" data-title='{0}'", h1Match.Groups["inner"].Value);
                 }
                 else
                 {
-                    sb.Append(" data-title='initial h1 element not found'");
+                    sb.Append($" data-title='{fallBackTitle}'");
                 }
             }
             else
             {
-                sb.AppendFormat(" data-title='File {0} not found'", htmlDir + href);
+                sb.Append($" data-title='{fallBackTitle}'");
             }
         }
 
         private string ReplaceImages(string content)
         {
-            return rxDrawingImage.Replace(content,
-                DrawingImageReplacement);
+            return rxDrawingImage.Replace(content, DrawingImageReplacement);
         }
 
         private static void AppendInnerText(StringBuilder sb, string content)
@@ -394,7 +410,7 @@ namespace WordToSimpleHtml
             bodyContent = rxImgInP.Replace(bodyContent,
                 m =>
                     string.Format(
-                        "<p class=\"img-in-p\"><img alt=\"{2}\" src=\"/home/help/{1}\" /><br />{0}</p>",
+                        "<p class=\"img-in-p\"><img alt=\"{2}\" src=\"/home/help/content/{1}\" /><br />{0}</p>",
                         rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty)));
 
             bodyContent = rxUnneededBr.Replace(bodyContent, "${keep}");
@@ -492,7 +508,7 @@ namespace WordToSimpleHtml
                 {
                     var gridSpanMatch = rxGridSpan.Match(cellMatch.Groups["inner"].Value);
 
-                    sb.AppendFormat("<td{0}>", gridSpanMatch.Success ? string.Format(" colspan=\"{0}\"", gridSpanMatch.Groups["colspan"].Value) : string.Empty);
+                    sb.AppendFormat("<td{0}>", gridSpanMatch.Success ? $" colspan=\"{gridSpanMatch.Groups["colspan"].Value}\"" : string.Empty);
 
                     AppendParagraphs(sb, cellMatch.Groups["inner"].Value);
                     //AppendInnerText(sb, cellMatch.Groups["inner"].Value);

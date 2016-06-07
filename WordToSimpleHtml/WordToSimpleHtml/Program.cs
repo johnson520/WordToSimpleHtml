@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 
 namespace WordToSimpleHtml
 {
-	class Program
+    internal static class Program
 	{
-		static void Main(string[] args)
+        private static void Main(string[] args)
 		{
 		    if (args.Length != 2)
 			{
@@ -17,10 +17,10 @@ namespace WordToSimpleHtml
 			var docxFile = Path.GetFullPath(args[0]);
 			var htmlFile = Path.GetFullPath(args[1]);
 
-            htmlFile = Path.GetDirectoryName(htmlFile) + @"\" + Regex.Replace(Path.GetFileName(htmlFile), @"\s+", "-").ToLowerInvariant();
+            htmlFile = $@"{Path.GetDirectoryName(htmlFile)}\{Regex.Replace(Path.GetFileName(htmlFile), @"\s+", "-").ToLowerInvariant()}";
 			var imageFilePrefix = Regex.Replace(Path.GetFileNameWithoutExtension(htmlFile), @"\W", string.Empty) + "-";
 
-			Console.WriteLine("Converting {0} to {1} with images to {2}", docxFile, htmlFile, imageFilePrefix);
+            Console.WriteLine($"Converting {docxFile} to {htmlFile} with images to {imageFilePrefix}");
 
 			try
 			{
@@ -29,7 +29,7 @@ namespace WordToSimpleHtml
 			}
 			catch (IOException ioe)
 			{
-				Console.WriteLine(Environment.NewLine + "!!!" + ioe.Message);
+				Console.WriteLine($"{Environment.NewLine}!!!{ioe.Message}");
 			}
 
 		}
