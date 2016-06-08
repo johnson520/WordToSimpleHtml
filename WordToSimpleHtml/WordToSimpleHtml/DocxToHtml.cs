@@ -304,7 +304,7 @@ namespace WordToSimpleHtml
                 bodyContent = rxInitialH1.Replace(bodyContent, "<h1 class=\"title\">${inner}</h1>" + Environment.NewLine);
             }
 
-            bodyContent = rxListAfterP.Replace(bodyContent, "<p style=\"margin-bottom:0;\">${inner}:</p>" + Environment.NewLine + "<ul style=\"margin-top:0;\">");
+            bodyContent = rxListAfterP.Replace(bodyContent, "<p style=\"margin-bottom:0;\">${inner}:</p>" + Environment.NewLine + "<ul class=\"help-ul\" style=\"margin-top:0;\">");
 
             bodyContent = rxInnerText.Replace(bodyContent, InnerTextCleanup);
 
