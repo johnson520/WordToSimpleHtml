@@ -53,7 +53,7 @@ namespace WordToSimpleHtml
         private static readonly Regex rxInternet = new Regex(@"\binternet\b", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxQuotePunctuation = new Regex(@"”(?<punc>[,\.])", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTestDrive = new Regex(@"\btestdrive\b", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
-        private static readonly Regex rxLonelyPsInTds = new Regex(@"<td>\s*<p>(?<inner>(?:(?!<p>).)*?)</p>\s*</td>", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex rxLonelyPsInTds = new Regex(@"<td>\s*<p(?<pclass>\s+class=""[^""]+"")\s*>(?<inner>(?:(?!<p>).)*?)</p>\s*</td>", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxEmptyPs = new Regex(@"<p[^>]*>\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTitleP = new Regex(@"^\s*<p\s+class=""Title"">\s*(?<inner>.*?)\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxInitialH1 = new Regex(@"<h1[^>]*>\s*(?<inner>.*?)\s*</h1>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
@@ -275,12 +275,12 @@ namespace WordToSimpleHtml
             bodyContent = rxTableCleanup.Replace(bodyContent, "<div class=\"table-wrapper\">${tag}");
             bodyContent = rxTableEndCleanup.Replace(bodyContent, "</table></div>");
 
-            bodyContent = rxLonelyPsInTds.Replace(bodyContent, "<td>${inner}</td>");
+            bodyContent = rxLonelyPsInTds.Replace(bodyContent, "<td${pclass}>${inner}</td>");
 
             bodyContent = rxImgInP.Replace(bodyContent, m =>
                 string.Format(
-                    "<p class=\"img-in-p\"><img alt=\"{2}\" src=\"/home/help/{1}\" /><br />{0}</p>",
-                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty)));
+                    "<p class=\"img-in-p\"><span class=\"img-wrapper\"><img alt=\"{2}\" src=\"/home/help/{1}?ver={3}\" /><br />{0}</span></p>",
+                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow.ToString("MMdd")));
 
             bodyContent = rxUnneededBr.Replace(bodyContent, "${keep}");
             bodyContent = rxEmptyPs.Replace(bodyContent, string.Empty);
