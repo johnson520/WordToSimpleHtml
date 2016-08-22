@@ -67,6 +67,7 @@ namespace WordToSimpleHtml
         private static readonly Regex rxListAfterP = new Regex(@"<p>(?<inner>(?:(?!:?</p>).)*):</p>\s*<ul>");
         private static readonly Regex rxImageBlip = new Regex(@"<a:blip\s+r:(?<embedLink>embed|link)=""(?<relid>[^""]+)""", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxAbsoluteUrl = new Regex("(?:https?:)?//", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex rxFontAwesome = new Regex(@"<i>\s*(?<faclass>fa-\w+)\s*</i>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly ErrorLogger logError;
         private readonly Dictionary<string, string> rels = new Dictionary<string, string>();
@@ -307,6 +308,8 @@ namespace WordToSimpleHtml
             bodyContent = rxListAfterP.Replace(bodyContent, "<p style=\"margin-bottom:0;\">${inner}:</p>" + Environment.NewLine + "<ul class=\"help-ul\" style=\"margin-top:0;\">");
 
             bodyContent = rxInnerText.Replace(bodyContent, InnerTextCleanup);
+
+            bodyContent = rxFontAwesome.Replace(bodyContent, "<i class=\"fa ${faclass}\"></i>");
 
             return bodyContent;
         }
