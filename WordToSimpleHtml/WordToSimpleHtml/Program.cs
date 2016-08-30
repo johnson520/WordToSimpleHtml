@@ -1,13 +1,17 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace WordToSimpleHtml
 {
     internal static class Program
 	{
-        private static void Main(string[] args)
-		{
+        private static void Main(string[] allArgs)
+        {
+            var args = allArgs.Where(a => !a.StartsWith("-")).ToArray();
+            var options = allArgs.Where(a => a.StartsWith("-")).Select(a => a.ToLowerInvariant()).ToList();
+
 		    if (args.Length != 2)
 			{
 				Console.WriteLine("Usage: word-file output-file");
@@ -25,7 +29,7 @@ namespace WordToSimpleHtml
 			try
 			{
 			    string title;
-			    new DocxToHtml(Console.WriteLine).Convert(docxFile, htmlFile, imageFilePrefix, out title);
+			    new DocxToHtml(Console.WriteLine, options).Convert(docxFile, htmlFile, imageFilePrefix, out title);
 			}
 			catch (IOException ioe)
 			{

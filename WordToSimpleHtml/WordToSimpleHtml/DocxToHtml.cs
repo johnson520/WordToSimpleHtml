@@ -72,10 +72,12 @@ namespace WordToSimpleHtml
         private readonly ErrorLogger logError;
         private readonly Dictionary<string, string> rels = new Dictionary<string, string>();
         private string htmlDir;
+        private readonly bool makeAccordion;
 
-        public DocxToHtml(ErrorLogger logger)
+        public DocxToHtml(ErrorLogger logger, List<string> options)
         {
             logError = logger;
+            makeAccordion = options.Contains("-accordion") || options.Contains("-a");
         }
 
         public void Convert(string docxFile, string htmlFile, string imageFilePrefix, out string foundTitle)
@@ -280,8 +282,8 @@ namespace WordToSimpleHtml
 
             bodyContent = rxImgInP.Replace(bodyContent, m =>
                 string.Format(
-                    "<p class=\"img-in-p\"><span class=\"img-wrapper\"><img alt=\"{2}\" src=\"/home/help/{1}?ver={3}\" /><br />{0}</span></p>",
-                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow.ToString("MMdd")));
+                    "<p class=\"img-in-p\"><span class=\"img-wrapper\"><img alt=\"{2}\" src=\"/home/help/{1}?ver={3:MMdd}\" /><br />{0}</span></p>",
+                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow));
 
             bodyContent = rxUnneededBr.Replace(bodyContent, "${keep}");
             bodyContent = rxEmptyPs.Replace(bodyContent, string.Empty);
@@ -446,8 +448,76 @@ namespace WordToSimpleHtml
             bodyContent = ReplaceTables(bodyContent);
 
             bodyContent = CollectParagraphs(bodyContent);
+            bodyContent = FinalCleanup(bodyContent, out foundTitle);
 
-            return FinalCleanup(bodyContent, out foundTitle);
+            if (makeAccordion)
+                bodyContent = MakeAccordionOnH2(bodyContent);
+
+            return bodyContent;
+        }
+
+        private static readonly Regex rxH2AndFollowing = new Regex(@"<h2\s*(?<h2attr>[^>]*)>(?<h2inner>.*?)</h2>(?<following>.*?(([\r\n]+.*?)*)*)(?=<h2|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        private static readonly Regex rxNonWord = new Regex(@"\W+", RegexOptions.Compiled | RegexOptions.Singleline);
+        private const string accordionStyle = @"<style>
+    h2[accordion] {
+        cursor: pointer;
+        padding-left: 20px !important;
+        position: relative;
+        margin-bottom: 0.5em !important;
+    }
+    h2[accordion].acc-open {
+        margin-bottom: 0 !important;
+    }
+    h2[accordion]::before {
+        font-family: FontAwesome;
+        content: ""\f0da"";
+        position: absolute;
+        left: 0;
+        top: 3px;
+    }
+    h2[accordion].acc-open::before {
+        content: ""\f0d7"";
+    }
+    div[accordion-body] {
+        padding-left: 20px;
+    }
+    div[accordion-body].acc-body-closed {
+        display: none;
+    }
+</style>
+";
+
+        private const string accordionScript = @"<script>
+    function toggleAccordion(accId) {
+        var accH2 = document.querySelector(""h2[accordion='"" + accId + ""']"");
+        var accBody = document.querySelector(""div[accordion-body='"" + accId + ""']"");
+        if (accH2.classList.contains(""acc-closed"")) {
+            accH2.classList.remove(""acc-closed"");
+            accH2.classList.add(""acc-open"");
+            accBody.classList.remove(""acc-body-closed"");
+            accBody.classList.add(""acc-body-open"");
+        } else {
+            accH2.classList.remove(""acc-open"");
+            accH2.classList.add(""acc-closed"");
+            accBody.classList.remove(""acc-body-open"");
+            accBody.classList.add(""acc-body-closed"");
+        }
+    }
+</script>
+";
+
+        private static string MakeAccordionOnH2(string bodyContent)
+        {
+            bodyContent = rxH2AndFollowing.Replace(bodyContent, m =>
+            {
+                var id = rxNonWord.Replace(rxNoTags.Replace(m.Groups["h2inner"].Value, string.Empty), string.Empty).ToLowerInvariant();
+                if (id.Length > 32)
+                    id = id.Substring(0, 32);
+
+                return $"<h2 accordion='{id}' {m.Groups["h2attr"].Value} class='acc-closed' onclick='toggleAccordion(\"{id}\")'>{m.Groups["h2inner"].Value}</h2>\n<div accordion-body='{id}' class='acc-body-closed'>{m.Groups["following"].Value}</div>\n";
+            });
+
+            return $"{accordionStyle}{bodyContent}{accordionScript}";
         }
 
         private string DrawingImageReplacement(Match drawingMatch)
