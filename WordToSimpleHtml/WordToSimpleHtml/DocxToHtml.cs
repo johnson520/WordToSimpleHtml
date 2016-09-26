@@ -562,7 +562,11 @@ namespace WordToSimpleHtml
 
                 var sb = new StringBuilder("<w:faker><w:t>");
                 if (isMailTo)
+                {
+                    if (href.StartsWith("mailto:"))
+                        href = href.Substring("mailto:".Length);
                     sb.Append($"<a href=\"mailto:{href}\"");
+                }
                 else
                     sb.AppendFormat("<a href=\"{0}{1}\"", href, !string.IsNullOrEmpty(hash) ? $"#{hash}" : string.Empty);
 
