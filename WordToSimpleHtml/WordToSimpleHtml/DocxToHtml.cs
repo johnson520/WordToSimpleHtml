@@ -207,11 +207,11 @@ namespace WordToSimpleHtml
                 {
                     style = pStyleMatch.Groups["style"].Value;
 
-                    if (style.Contains("Normal"))
+                    if (style.Contains("Normal") || style == "BodyText")
                     {
                         style = string.Empty;
                     }
-                    else if (style == "ListParagraph")
+                    else if (style == "ListParagraph" || style == "ListBullet")
                     {
                         if (!inList)
                         {
@@ -307,9 +307,7 @@ namespace WordToSimpleHtml
                 bodyContent = rxInitialH1.Replace(bodyContent, "<h1 class=\"title\">${inner}</h1>" + Environment.NewLine);
             }
 
-            bodyContent = rxListAfterP.Replace(bodyContent, "<p style=\"margin-bottom:0;\">${inner}:</p>" + Environment.NewLine + "<ul class=\"help-ul\" style=\"margin-top:0;\">");
-
-            bodyContent = rxInnerText.Replace(bodyContent, InnerTextCleanup);
+            bodyContent = rxListAfterP.Replace(bodyContent, "<p class=\"before-help-ul\">${inner}:</p>" + Environment.NewLine + "<ul class=\"help-ul\">");
 
             bodyContent = rxFontAwesome.Replace(bodyContent, "<i class=\"fa ${faclass}\"></i>");
 
@@ -325,19 +323,6 @@ namespace WordToSimpleHtml
             //    name = string.Format("{0}{1}-{2}{3}", imageFilePrefix, Path.GetFileNameWithoutExtension(relValue), ++uniqueSuffix, Path.GetExtension(relValue));
 
             return name;
-        }
-
-        private static string InnerTextCleanup(Match m)
-        {
-            var s = m.Groups["inner"].Value;
-
-            s = rxWebsomething.Replace(s, "Web ${something}");
-            s = rxWeb.Replace(s, "Web");
-            s = rxInternet.Replace(s, "Internet");
-            s = rxTestDrive.Replace(s, "Test Drive");
-            s = rxQuotePunctuation.Replace(s, "${punc}”");
-
-            return ">" + s + "<";
         }
 
         private static string ReadAllPart(Package p, string whatPart)
@@ -572,14 +557,18 @@ namespace WordToSimpleHtml
             return rxHyperlink.Replace(content, delegate(Match m)
             {
                 var href = rels[m.Groups["relid"].Value];
+                var isMailTo = href.Contains("@");
                 var hash = m.Groups["anchor"].Value;
 
                 var sb = new StringBuilder("<w:faker><w:t>");
-                sb.AppendFormat("<a href=\"{0}{1}\"", href, !string.IsNullOrEmpty(hash) ? $"#{hash}" : string.Empty);
+                if (isMailTo)
+                    sb.Append($"<a href=\"mailto:{href}\"");
+                else
+                    sb.AppendFormat("<a href=\"{0}{1}\"", href, !string.IsNullOrEmpty(hash) ? $"#{hash}" : string.Empty);
 
                 if (rxAbsoluteUrl.IsMatch(href))
                     sb.Append(" target=\"_blank\"");
-                else
+                else if (!isMailTo)
                     AppendDataTitle(sb, href, rxText.Match(m.Groups["inner"].Value).Groups["inner"].Value);
 
                 sb.Append(">");
