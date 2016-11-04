@@ -28,6 +28,7 @@ namespace WordToSimpleHtml
 
         private static readonly Regex rxBody = new Regex(@"<w:body\b[^>]*>(?<inner>.+?)</w:body>", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex rxParagraph = new Regex(@"<w:p\b[^>]*>(?<inner>.+?)</w:p>", RegexOptions.Singleline | RegexOptions.Compiled);
+        private static readonly Regex rxSection = new Regex(@"<w:sectPr\b[^>]*>(?<inner>.+?)</w:sectPr>", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex rxText = new Regex(@"<w:(?<br>br)/>|<w:(?<tab>tab)/>|<w:t\b[^>]*>(?<inner>.+?)</w:t>", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex rxRun = new Regex(@"<(?<tag>w:(?:fake)?r)\b[^>]*>(?<inner>.+?)</\k<tag>>", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex rxRunProp = new Regex(@"<w:rPr\b[^>]*>(?<inner>.+?)</w:rPr>", RegexOptions.Singleline | RegexOptions.Compiled);
@@ -47,12 +48,14 @@ namespace WordToSimpleHtml
         private static readonly Regex rxGridSpan = new Regex(@"<w:gridSpan\s+w:val=""(?<colspan>\d+)""/>");
         private static readonly Regex rxTableCleanup = new Regex(@"<p>\s*(?<tag><table[^>]*>)", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTableEndCleanup = new Regex(@"</table>\s*</p>", RegexOptions.Compiled | RegexOptions.Singleline);
+/*
         private static readonly Regex rxInnerText = new Regex(">(?<inner>[^>]*)<", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxWebsomething = new Regex(@"\b[wW]eb(?<something>(?:site|page)s?)\b", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxWeb = new Regex(@"\bweb\b", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxInternet = new Regex(@"\binternet\b", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxQuotePunctuation = new Regex(@"”(?<punc>[,\.])", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTestDrive = new Regex(@"\btestdrive\b", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
+*/
         private static readonly Regex rxLonelyPsInTds = new Regex(@"<td>\s*<p(?<pclass>\s+class=""[^""]+"")\s*>(?<inner>(?:(?!<p>).)*?)</p>\s*</td>", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxEmptyPs = new Regex(@"<p[^>]*>\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxTitleP = new Regex(@"^\s*<p\s+class=""Title"">\s*(?<inner>.*?)\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
@@ -226,6 +229,10 @@ namespace WordToSimpleHtml
                         tag = "li";
                         style = null;
                     }
+                    else if (rxSection.IsMatch(pInner))
+                    {
+                        tag = "section";
+                    }
                     else
                     {
                         var headingMatch = rxHeadingStyle.Match(style);
@@ -241,6 +248,12 @@ namespace WordToSimpleHtml
                 {
                     sb.AppendLine($"</{listTag}>");
                     inList = false;
+                }
+
+                if (tag == "section")
+                {
+                    sb.AppendLine($"<section class=\"{style}\"></section>");
+                    continue;
                 }
 
                 //  do some work to avoid outputting empty elements (empty <ul></ul> will still be output)
@@ -311,7 +324,36 @@ namespace WordToSimpleHtml
 
             bodyContent = rxFontAwesome.Replace(bodyContent, "<i class=\"fa ${faclass}\"></i>");
 
+            bodyContent = FixUpSections(bodyContent);
+
             return bodyContent;
+        }
+
+        private static readonly Regex rxSectionElement = new Regex(@"(?<openTag><section[^>]*>)</section>[\r\n]*", RegexOptions.Singleline | RegexOptions.Compiled);
+
+        private static string FixUpSections(string bodyContent)
+        {
+            var sb = new StringBuilder();
+
+            var lastPosition = 0;
+            for (var sectionMatch = rxSectionElement.Match(bodyContent); sectionMatch.Success; sectionMatch = sectionMatch.NextMatch())
+            {
+                sb.Append(bodyContent.Substring(lastPosition, sectionMatch.Index - lastPosition));
+
+                if (lastPosition > 0)
+                    sb.AppendLine("</section>");
+
+                sb.AppendLine(sectionMatch.Groups["openTag"].Value);
+                lastPosition = sectionMatch.Index + sectionMatch.Length;
+            }
+
+            if (lastPosition == 0)
+                return bodyContent;
+
+            sb.Append(bodyContent.Substring(lastPosition));
+            sb.AppendLine("</section>");
+
+            return sb.ToString();
         }
 
         private static string ImageFileName(string imageFilePrefix, string relValue)
