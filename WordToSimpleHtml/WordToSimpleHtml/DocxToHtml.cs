@@ -357,13 +357,13 @@ namespace WordToSimpleHtml
         }
 
         private static readonly Regex rxRulesSectionElement = new Regex(@"<section class=""RulesSection"">(?<inner>.+?)</section>", RegexOptions.Singleline | RegexOptions.Compiled);
-        private static readonly Regex rxQuotedOption = new Regex(@"“(?<inner>[^”]+)”");
+        private static readonly Regex rxQuotedOption = new Regex(@"“[^”]+”");
 
         private static string QuotesToBoldInRulesSections(string bodyContent)
         {
             return rxRulesSectionElement.Replace(bodyContent, m =>
             {
-                var innerText = rxQuotedOption.Replace(m.Groups["inner"].Value, m2 => $"<b class=\"rulesOption\">{m2.Groups["inner"].Value}</b>");
+                var innerText = rxQuotedOption.Replace(m.Groups["inner"].Value, m2 => $"<b class=\"rulesOption\">{m2.Value}</b>");
                 return $"<section class=\"RulesSection\">{innerText}</section>";
             });
         }
