@@ -526,24 +526,7 @@ namespace WordToSimpleHtml
 </style>
 ";
 
-        private const string accordionScript = @"<script>
-    function toggleAccordion(accId) {
-        var accH2 = document.querySelector(""h2[accordion='"" + accId + ""']"");
-        var accBody = document.querySelector(""div[accordion-body='"" + accId + ""']"");
-        if (accH2.classList.contains(""acc-closed"")) {
-            accH2.classList.remove(""acc-closed"");
-            accH2.classList.add(""acc-open"");
-            accBody.classList.remove(""acc-body-closed"");
-            accBody.classList.add(""acc-body-open"");
-        } else {
-            accH2.classList.remove(""acc-open"");
-            accH2.classList.add(""acc-closed"");
-            accBody.classList.remove(""acc-body-open"");
-            accBody.classList.add(""acc-body-closed"");
-        }
-    }
-</script>
-";
+        private const string accordionScript = "<script src=\"/home/help/faq.js\"></script>";
 
         private static string MakeAccordionOnH2(string bodyContent)
         {
