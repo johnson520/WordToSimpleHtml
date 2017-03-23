@@ -61,7 +61,7 @@ namespace WordToSimpleHtml
         private static readonly Regex rxTitleP = new Regex(@"^\s*<p\s+class=""Title"">\s*(?<inner>.*?)\s*</p>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex rxInitialH1 = new Regex(@"<h1[^>]*>\s*(?<inner>.*?)\s*</h1>\s*", RegexOptions.Compiled | RegexOptions.Singleline);
 
-        private static readonly Regex rxImgInP = new Regex(@"<p>\s*(?:<[bi]>)*\s*<img\s+src=""(?<src>[^""]+)""\s*/>\s*(?:<br\s?/>)*\s*(?<caption>.*?)\s*(?:</[bi]>\s*)*</p>",
+        private static readonly Regex rxImgInP = new Regex(@"<p>\s*(?:<[bi]>)*\s*<img\s+src=""(?<src>[^""]+)""\s*(?<style>style=""[^""]+"")?\s*/>\s*(?:<br\s?/>)*\s*(?<caption>.*?)\s*(?:</[bi]>\s*)*</p>",
             RegexOptions.Compiled | RegexOptions.Singleline);
 
         private static readonly Regex rxNoBI = new Regex("</?[bi]>", RegexOptions.Compiled);
@@ -286,6 +286,8 @@ namespace WordToSimpleHtml
             return sb.ToString();
         }
 
+        private static readonly Regex rxStyle = new Regex(@"(\bstyle=""[^""]+"")?", RegexOptions.Compiled);
+
         private static string FinalCleanup(string bodyContent, out string foundTitle)
         {
             bodyContent = rxTableCleanup.Replace(bodyContent, "<div class=\"table-wrapper\">${tag}");
@@ -295,8 +297,9 @@ namespace WordToSimpleHtml
 
             bodyContent = rxImgInP.Replace(bodyContent, m =>
                 string.Format(
-                    "<p class=\"img-in-p\"><span class=\"img-wrapper\"><img alt=\"{2}\" src=\"/home/help/{1}?ver={3:MMdd}\" /><br />{0}</span></p>",
-                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow));
+                    "<p class=\"img-in-p\"><span class=\"img-wrapper\"><img alt=\"{2}\" src=\"/home/help/{1}?ver={3:MMdd}\" {4} /><br />{0}</span></p>",
+                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow,
+                    m.Groups["style"].Value));
 
             bodyContent = rxUnneededBr.Replace(bodyContent, "${keep}");
             bodyContent = rxEmptyPs.Replace(bodyContent, string.Empty);
@@ -542,17 +545,30 @@ namespace WordToSimpleHtml
             return $"{accordionStyle}{bodyContent}{accordionScript}";
         }
 
+        private static readonly Regex rxImageExtent = new Regex(@"\<a\:ext\s+cx=""(?<cx>\d+)""\s+cy=""(?<cy>\d+)""", RegexOptions.Compiled);
+
         private string DrawingImageReplacement(Match drawingMatch)
         {
             var replacement = "<w:faker><w:t>[Word Drawing Removed]</w:t></w:faker>";
 
-            var blipMatch = rxImageBlip.Match(drawingMatch.Groups["inner"].Value);
+            var drawingMatchValue = drawingMatch.Groups["inner"].Value;
+            var blipMatch = rxImageBlip.Match(drawingMatchValue);
             if (blipMatch.Success)
             {
                 var relKey = blipMatch.Groups["relid"].Value;
                 var relValue = rels[relKey];
+
+                var widthHeight = string.Empty;
+                var extentMatch = rxImageExtent.Match(drawingMatchValue);
+                if (extentMatch.Success)
+                {
+                    var cx = int.Parse(extentMatch.Groups["cx"].Value) / 10000.0;
+                    var cy = int.Parse(extentMatch.Groups["cy"].Value) / 10000.0;
+                    widthHeight = $"style=\"width: {cx:0.0}px; height: {cy:0.0}px;\"";
+                }
+
                 //  we link to images whether they were originally linked or embedded. code in LoadRels copies embedded images to local files.
-                replacement = $"<w:faker><w:t><img src=\"{relValue}\" /></w:t></w:faker>";
+                replacement = $"<w:faker><w:t><img src=\"{relValue}\" {widthHeight} /></w:t></w:faker>";
             }
 
             return replacement;
