@@ -298,7 +298,8 @@ namespace WordToSimpleHtml
             bodyContent = rxImgInP.Replace(bodyContent, m =>
                 string.Format(
                     "<p class=\"img-in-p\"><span class=\"img-wrapper\"><img alt=\"{2}\" src=\"/home/help/{1}?ver={3:MMdd}\" {4} /><br />{0}</span></p>",
-                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value, rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow,
+                    rxNoBI.Replace(m.Groups["caption"].Value, string.Empty), m.Groups["src"].Value,
+                    rxNoTags.Replace(m.Groups["caption"].Value, string.Empty), DateTime.UtcNow,
                     m.Groups["style"].Value));
 
             bodyContent = rxUnneededBr.Replace(bodyContent, "${keep}");
@@ -320,14 +321,16 @@ namespace WordToSimpleHtml
             if (h1Match.Success)
             {
                 foundTitle = h1Match.Groups["inner"].Value;
-                bodyContent = rxInitialH1.Replace(bodyContent, "<h1 class=\"title\">${inner}</h1>" + Environment.NewLine);
+                bodyContent = rxInitialH1.Replace(bodyContent,
+                    "<h1 class=\"title\">${inner}</h1>" + Environment.NewLine);
             }
 
-            bodyContent = rxListAfterP.Replace(bodyContent, "<p class=\"before-help-ul\">${inner}:</p>" + Environment.NewLine + "<ul class=\"help-ul\">");
+            bodyContent = rxListAfterP.Replace(bodyContent,
+                "<p class=\"before-help-ul\">${inner}:</p>" + Environment.NewLine + "<ul class=\"help-ul\">");
 
-            bodyContent = rxFontAwesome.Replace(bodyContent, "<i class=\"fa ${faclass}\"></i>");
+            bodyContent = rxFontAwesome.Replace(bodyContent, m => m.Groups["faclass"].Value == "fa-database" ? "<i class=\"icon-chips\"></i>" : "<i class=\"fa ${faclass}\"></i>");
 
-            bodyContent = FixUpSections(bodyContent);
+        bodyContent = FixUpSections(bodyContent);
 
             return bodyContent;
         }
